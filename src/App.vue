@@ -1,29 +1,5 @@
 <template>
   <div class="container mx-auto flex flex-col items-center bg-gray-100 p-4">
-    <!-- <div
-      class="fixed w-100 h-100 opacity-80 bg-purple-800 inset-0 z-50 flex items-center justify-center"
-    >
-      <svg
-        class="animate-spin -ml-1 mr-3 h-12 w-12 text-white"
-        xmlns="http://www.w3.org/2000/svg"
-        fill="none"
-        viewBox="0 0 24 24"
-      >
-        <circle
-          class="opacity-25"
-          cx="12"
-          cy="12"
-          r="10"
-          stroke="currentColor"
-          stroke-width="4"
-        ></circle>
-        <path
-          class="opacity-75"
-          fill="currentColor"
-          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-        ></path>
-      </svg>
-    </div> -->
     <div class="container">
       <section>
         <div class="flex">
@@ -42,31 +18,6 @@
                 placeholder="Например DOGE"
               />
             </div>
-            <!-- <div
-              class="flex bg-white shadow-md p-1 rounded-md shadow-md flex-wrap"
-            >
-              <span
-                class="inline-flex items-center px-2 m-1 rounded-md text-xs font-medium bg-gray-300 text-gray-800 cursor-pointer"
-              >
-                BTC
-              </span>
-              <span
-                class="inline-flex items-center px-2 m-1 rounded-md text-xs font-medium bg-gray-300 text-gray-800 cursor-pointer"
-              >
-                DOGE
-              </span>
-              <span
-                class="inline-flex items-center px-2 m-1 rounded-md text-xs font-medium bg-gray-300 text-gray-800 cursor-pointer"
-              >
-                BCH
-              </span>
-              <span
-                class="inline-flex items-center px-2 m-1 rounded-md text-xs font-medium bg-gray-300 text-gray-800 cursor-pointer"
-              >
-                CHD
-              </span>
-            </div>
-            <div class="text-sm text-red-600">Такой тикер уже добавлен</div> -->
           </div>
         </div>
         <button
@@ -91,12 +42,16 @@
         </button>
       </section>
 
-      <template v-if="this.tickers.length > 0">
+      <template v-if="this.tickers.length">
         <hr class="w-full border-t border-gray-600 my-4" />
         <dl class="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-3">
           <div
             v-for="(t, idx) in tickers"
             :key="idx"
+            @click.stop="select(t)"
+            :class="{
+              'border-4': sel === t,
+            }"
             class="bg-white overflow-hidden shadow rounded-lg border-purple-800 border-solid cursor-pointer"
           >
             <div class="px-4 py-5 sm:p-6 text-center">
@@ -130,17 +85,23 @@
         </dl>
         <hr class="w-full border-t border-gray-600 my-4" />
       </template>
-      <section class="relative">
+      <section v-if="sel" class="relative">
         <h3 class="text-lg leading-6 font-medium text-gray-900 my-8">
-          VUE - USD
+          {{ sel.name }} - USD
         </h3>
         <div class="flex items-end border-gray-600 border-b border-l h-64">
-          <div class="bg-purple-800 border w-10 h-24"></div>
-          <div class="bg-purple-800 border w-10 h-32"></div>
-          <div class="bg-purple-800 border w-10 h-48"></div>
-          <div class="bg-purple-800 border w-10 h-16"></div>
+          <div
+            v-for="(bar, idx) in normalizeGraph()"
+            :key="idx"
+            :style="{ height: `${bar}%` }"
+            class="bg-purple-800 border w-10"
+          ></div>
         </div>
-        <button type="button" class="absolute top-0 right-0">
+        <button
+          @click="sel = null"
+          type="button"
+          class="absolute top-0 right-0"
+        >
           <svg
             xmlns="http://www.w3.org/2000/svg"
             xmlns:xlink="http://www.w3.org/1999/xlink"
@@ -174,36 +135,50 @@ export default {
 
   data() {
     return {
-      ticker: "default",
-      tickers: [
-        {
-          name: "BTC",
-          price: "-",
-        },
-        {
-          name: "DOGE",
-          price: "-",
-        },
-        {
-          name: "BCH",
-          price: "-",
-        },
-      ],
+      ticker: "",
+      tickers: [],
+      sel: null,
+      graph: [],
     };
   },
 
   methods: {
     add() {
-      const newTicker = {
+      const currentTicker = {
         name: this.ticker,
         price: "-",
       };
-      this.tickers.push(newTicker);
+      this.tickers.push(currentTicker);
+      setInterval(async () => {
+        const f = await fetch(
+          `https://min-api.cryptocompare.com/data/price?fsym=${currentTicker.name}&tsyms=USD&api_key=3fd020c799e74da6b71ae33e88aca04867d111f27f77c037327158024b40d354`
+        );
+        const data = await f.json();
+        this.tickers.find((t) => t.name === currentTicker.name).price =
+          data.USD > 1 ? data.USD.toFixed(2) : data.USD.toPrecision(2);
+
+        if (this.sel?.name === currentTicker.name) {
+          this.graph.push(data.USD);
+        }
+      }, 5000);
       this.ticker = "";
+    },
+
+    select(ticker) {
+      this.sel = ticker;
+      this.graph = [];
     },
 
     removeTicker(ticker) {
       this.tickers = this.tickers.filter((t) => t !== ticker);
+    },
+
+    normalizeGraph() {
+      const minValue = Math.min(...this.graph);
+      const maxValue = Math.max(...this.graph);
+      return this.graph.map(
+        (price) => 5 + ((price - minValue) * 95) / (maxValue - minValue)
+      );
     },
   },
 };
