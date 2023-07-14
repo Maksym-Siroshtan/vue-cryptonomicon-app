@@ -1,6 +1,7 @@
 <template>
   <div class="container mx-auto flex flex-col items-center bg-gray-100 p-4">
     <div class="container">
+      <div class="w-full my-4"></div>
       <section>
         <div class="flex">
           <div class="max-w-xs">
@@ -42,13 +43,13 @@
         </button>
       </section>
 
-      <template v-if="this.tickers.length">
+      <template v-if="tickers.length">
         <hr class="w-full border-t border-gray-600 my-4" />
         <dl class="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-3">
           <div
-            v-for="(t, idx) in tickers"
-            :key="idx"
-            @click.stop="select(t)"
+            v-for="t in tickers"
+            :key="t.name"
+            @click="select(t)"
             :class="{
               'border-4': sel === t,
             }"
@@ -64,7 +65,7 @@
             </div>
             <div class="w-full border-t border-gray-200"></div>
             <button
-              @click="removeTicker(t)"
+              @click.stop="handleDelete(t)"
               class="flex items-center justify-center font-medium w-full bg-gray-100 px-4 py-4 sm:px-6 text-md text-gray-500 hover:text-gray-600 hover:bg-gray-200 hover:opacity-20 transition-all focus:outline-none"
             >
               <svg
@@ -148,12 +149,15 @@ export default {
         name: this.ticker,
         price: "-",
       };
+
       this.tickers.push(currentTicker);
       setInterval(async () => {
         const f = await fetch(
-          `https://min-api.cryptocompare.com/data/price?fsym=${currentTicker.name}&tsyms=USD&api_key=3fd020c799e74da6b71ae33e88aca04867d111f27f77c037327158024b40d354`
+          `https://min-api.cryptocompare.com/data/price?fsym=${currentTicker.name}&tsyms=USD&api_key=ce3fd966e7a1d10d65f907b20bf000552158fd3ed1bd614110baa0ac6cb57a7e`
         );
         const data = await f.json();
+
+        // currentTicker.price =  data.USD > 1 ? data.USD.toFixed(2) : data.USD.toPrecision(2);
         this.tickers.find((t) => t.name === currentTicker.name).price =
           data.USD > 1 ? data.USD.toFixed(2) : data.USD.toPrecision(2);
 
@@ -169,13 +173,13 @@ export default {
       this.graph = [];
     },
 
-    removeTicker(ticker) {
-      this.tickers = this.tickers.filter((t) => t !== ticker);
+    handleDelete(tickerToRemove) {
+      this.tickers = this.tickers.filter((t) => t !== tickerToRemove);
     },
 
     normalizeGraph() {
-      const minValue = Math.min(...this.graph);
       const maxValue = Math.max(...this.graph);
+      const minValue = Math.min(...this.graph);
       return this.graph.map(
         (price) => 5 + ((price - minValue) * 95) / (maxValue - minValue)
       );
@@ -183,5 +187,3 @@ export default {
   },
 };
 </script>
-
-<style src="./app.css"></style>
