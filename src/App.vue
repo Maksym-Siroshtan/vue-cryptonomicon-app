@@ -116,7 +116,7 @@
                 {{ tiker.name }} - USD
               </dt>
               <dd class="mt-1 text-3xl font-semibold text-gray-900">
-                {{ tiker.price }}
+                {{ formatPrice(tiker.price) }}
               </dd>
             </div>
             <div class="w-full border-t border-gray-200"></div>
@@ -202,6 +202,8 @@
 // [x] График сломан если везде одинаковые значения
 // [x] При удалении тикера остается выбор
 
+import { subscribeToTicker, unsubscribeFromTicker } from "./api";
+
 export default {
   name: "App",
 
@@ -281,27 +283,18 @@ export default {
   },
 
   methods: {
-    subscribeToUpdates(tickerName) {
-      setInterval(async () => {
-        const f = await fetch(
-          `https://min-api.cryptocompare.com/data/price?fsym=${tickerName}&tsyms=USD&api_key=3fd020c799e74da6b71ae33e88aca04867d111f27f77c037327158024b40d354`
-        );
+    updateTicker(tickerName, price) {
+      this.tickers
+        .filter((t) => t.name === tickerName)
+        .forEach((t) => (t.price = price));
+    },
 
-        const data = await f.json();
+    formatPrice(price) {
+      if (price === "-") {
+        return price;
+      }
 
-        // currentTicker.price =  data.USD > 1 ? data.USD.toFixed(2) : data.USD.toPrecision(2);
-        try {
-          this.tickers.find((t) => t.name === tickerName).price =
-            data.USD > 1 ? data.USD.toFixed(2) : data.USD.toPrecision(2);
-
-          if (this.selectedTicker?.name === tickerName) {
-            this.graph.push(data.USD);
-          }
-        } catch (error) {
-          console.log(error);
-        }
-      }, 5000);
-      this.ticker = "";
+      return (price = price > 1 ? price.toFixed(2) : price.toPrecision(2));
     },
 
     getDataByLocalStorage() {
@@ -310,9 +303,12 @@ export default {
       if (tickersData) {
         this.tickers = JSON.parse(tickersData);
         this.tickers.forEach((ticker) => {
-          this.subscribeToUpdates(ticker.name);
+          subscribeToTicker(ticker.name, (newPrice) =>
+            this.updateTicker(ticker.name, newPrice)
+          );
         });
       }
+      setInterval(this.updateTickers, 5000);
     },
 
     async getCoinsList() {
@@ -341,8 +337,9 @@ export default {
       if (!this.added) {
         this.tickers = [...this.tickers, currentTicker];
         this.filter = "";
-
-        this.subscribeToUpdates(currentTicker.name);
+        subscribeToTicker(currentTicker, (newPrice) =>
+          this.updateTicker(currentTicker, newPrice)
+        );
       }
     },
 
@@ -352,10 +349,11 @@ export default {
 
     handleDelete(tickerToRemove) {
       this.tickers = this.tickers.filter((t) => t !== tickerToRemove);
-
+      console.log(this.selectedTicker === tickerToRemove);
       if (this.selectedTicker === tickerToRemove) {
-        this.selectedTicker === null;
+        this.selectedTicker = null;
       }
+      unsubscribeFromTicker(tickerToRemove);
     },
 
     changeInput() {
