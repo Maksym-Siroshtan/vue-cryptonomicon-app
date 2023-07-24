@@ -228,13 +228,21 @@ export default {
       new URL(window.location).searchParams.entries()
     );
 
-    if (windowData.filter) {
+    const VALID_KEYS = ["filter", "page"];
+
+    VALID_KEYS.forEach((key) => {
+      if (windowData[key]) {
+        this[key] = windowData[key];
+      }
+    });
+
+    /* if (windowData.filter) {
       this.filter = windowData.filter;
     }
 
     if (windowData.page) {
       this.page = windowData.page;
-    }
+    } */
   },
 
   computed: {
@@ -286,7 +294,12 @@ export default {
     updateTicker(tickerName, price) {
       this.tickers
         .filter((t) => t.name === tickerName)
-        .forEach((t) => (t.price = price));
+        .forEach((t) => {
+          if (t === this.selectedTicker) {
+            this.graph.push(price);
+          }
+          t.price = price;
+        });
     },
 
     formatPrice(price) {
@@ -337,6 +350,7 @@ export default {
       if (!this.added) {
         this.tickers = [...this.tickers, currentTicker];
         this.filter = "";
+        this.ticker = "";
         subscribeToTicker(currentTicker, (newPrice) =>
           this.updateTicker(currentTicker, newPrice)
         );
@@ -349,11 +363,10 @@ export default {
 
     handleDelete(tickerToRemove) {
       this.tickers = this.tickers.filter((t) => t !== tickerToRemove);
-      console.log(this.selectedTicker === tickerToRemove);
       if (this.selectedTicker === tickerToRemove) {
         this.selectedTicker = null;
       }
-      unsubscribeFromTicker(tickerToRemove);
+      unsubscribeFromTicker(tickerToRemove.name);
     },
 
     changeInput() {
